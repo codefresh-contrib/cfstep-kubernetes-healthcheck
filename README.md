@@ -2,23 +2,25 @@
 
 Prometheus Health Check Query based on Linkerd Success Percentage
 
-Step will:
-1. Check that Kubernetes deployment has all replicas available (Deployent Successful)
-2. Watch Prometheus metrics from Linkerd for given time confirming Success Rate remains higher than threshold configured.
+Types:
+`kubernetes` Check that Kubernetes deployment has all replicas available (Deployment Successful)
+`linkerd` Watch Prometheus metrics from Linkerd for given time confirming Success Rate remains higher than threshold configured.
 
 If either of the above fail the step will fail accordingly
 
 | ENVIRONMENT VARIABLE | DEFAULT | TYPE | REQUIRED | DESCRIPTION |
 |----------------------------|----------|---------|----------|---------------------------------------------------------------------------------------------------------------------------------|
-| CLUSTER | null | string | Yes | Kubernetes Context Name |
-| DEPLOY_TIMEOUT | null | integer | Yes | Timeout for Deployment Completion |
+| CLUSTER | null | string | No | Required for Kubernetes Type / Kubernetes Context Name |
+| DEPLOY_TIMEOUT | null | integer | No | (seconds) Required for Kubernetes Type / Timeout for Deployment Completion |
 | DEPLOYMENT | null | string | Yes | Kubernetes Deployment Name |
 | KUBE_CONFIG | null | string | Yes | Location of Kube Config file |
+| METRIC_TIMEOUT | null | integer | No | (seconds) Required for Linkerd Type / Time to wait for Prometheus to return metrics |
 | NAMESPACE | null | string | Yes | Kubernetes Namespace of Deployment |
 | PROMETHEUS_URL | null | string | Yes | Prometheus URL including protocol and port |
-| THRESHOLD | null | integer | Yes | Percentage represented in 1 - .01 (100% - 1%) |
-| TOTAL | null | integer | Yes | Total Time to Continue Testing |
-| WAIT | null | integer | Yes | Wait between tests |
+| THRESHOLD | null | integer | No | Required for Linkerd Type / Percentage represented in 1 - .01 (100% - 1%) |
+| TOTAL | null | integer | No | (seconds) Required for Linkerd Type / Total Time to Continue Testing |
+| TYPES | null | string | Yes | Type of Tests to Run |
+| WAIT | null | integer | Yes | (seconds) Wait between tests |
 
 Example Step Usage:
 

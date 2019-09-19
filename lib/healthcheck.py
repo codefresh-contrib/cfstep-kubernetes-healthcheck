@@ -1,3 +1,4 @@
+import datetime
 import json
 from kubernetes import client, config
 from kubernetes.client import configuration
@@ -5,6 +6,19 @@ from prometheus_http_client import Prometheus
 import os
 import time
 import sys
+
+class Error(Exception):
+   """Base class for other exceptions"""
+   pass
+class MetricThreshold(Error):
+   """Raised when metrics are below threshold given"""
+   pass
+class PrometheusMetricsNotAvailable(Error):
+   """Raised when metrics are not returned from Prometheus"""
+   pass
+class ThresholdCheckFailed(Error):
+   """Raised when metrics tests have failed"""
+   pass
 
 def get_deployment_data(cluster, deployment, namespace):
     config.load_kube_config(context=cluster)
@@ -14,78 +28,114 @@ def get_deployment_data(cluster, deployment, namespace):
     deploy_dict = json.loads(json_data.decode('utf-8'))
     return deploy_dict
 
+
+def get_metrics(metric):
+    prometheus = Prometheus()
+    query_results = prometheus.query(metric=f'{metric}')
+    query_dict = json.loads(query_results)
+    success_percent = query_dict['data']['result'][0]['value'][1]
+    if success_percent.replace('.','',1).isdigit():
+        return success_percent
+    else:
+        return False
+
 def main():
 
     cluster = os.getenv('CLUSTER')
     deployment = os.getenv('DEPLOYMENT')
     deploy_timeout = os.getenv('DEPLOY_TIMEOUT')
+    metric_timeout = os.getenv('METRIC_TIMEOUT')
     namespace = os.getenv('NAMESPACE')
     testing_time_total = os.getenv('TOTAL')
     testing_time_wait = os.getenv('WAIT')
     threshold = os.getenv('THRESHOLD')
+    types = os.getenv('TYPES')
 
-    timeout = time.time() + int(deploy_timeout)
+    d_timeout = time.time() + int(deploy_timeout)
 
-    deployment_completed = False
-    while not deployment_completed:
-        try:
-            deployment_dict = get_deployment_data(cluster, deployment, namespace)
-            unavailable_replicas = deployment_dict['status']['unavailableReplicas']
-            print('Deployment has not completed...')
-            print(f'Deployment has {unavailable_replicas} unavailable replicas.')
-            time.sleep(int(testing_time_wait))
-            if time.time() > timeout:
-                print(f'Deployment Timeout ({deploy_timeout}) Exceeded!' )
-                print('Rollback Initiated')
-                sys.exit(1)
-        except:
-            deployment_completed = True
-            print('Deployment Completed Successfully')
-            pass
+    healthcheck_types = types.lower()
+
+    if 'kubernetes' in healthcheck_types:
+        deployment_completed = False
+        while not deployment_completed:
+            try:
+                deployment_dict = get_deployment_data(cluster, deployment, namespace)
+                unavailable_replicas = deployment_dict['status']['unavailableReplicas']
+                print('Deployment has not completed...')
+                print(f'Deployment has {unavailable_replicas} unavailable replicas.')
+                time.sleep(int(testing_time_wait))
+                if time.time() > d_timeout:
+                    print(f'Deployment Timeout ({deploy_timeout}) Exceeded!' )
+                    print('Rollback Initiated')
+                    sys.exit(1)
+            except:
+                deployment_completed = True
+                print('Deployment Completed Successfully')
+                pass
 
     # Prometheus Tests
 
-    prometheus = Prometheus()
+    if 'linkerd' in healthcheck_types:
 
-    app_info = f'namespace="{namespace}", deployment="{deployment}"'
+        app_info = f'namespace="{namespace}", deployment="{deployment}"'
 
-    metric = 'sum(irate(response_total{classification="success", %s, direction="inbound"}[30s])) / sum(irate(response_total{%s, direction="inbound"}[30s]))' % (app_info, app_info)
+        metric = 'sum(irate(response_total{classification="success", %s, direction="inbound"}[30s])) / sum(irate(response_total{%s, direction="inbound"}[30s]))' % (app_info, app_info)
 
-    t_end = time.time() + int(testing_time_total)
+        m_timeout = time.time() + int(metric_timeout)
 
-    while time.time() < t_end:
-        success_metrics_available = False
-        while not success_metrics_available:
+        testing_started = False
+        print('Checking for Prometheus for Metrics')
+        while not testing_started:
             try:
-                query_results = prometheus.query(metric=f'{metric}')
-                query_dict = json.loads(query_results)
-                success_percent = query_dict['data']['result'][0]['value'][1]
-                if success_percent.replace('.','',1).isdigit():
-                    print('Success Metrics Available...')
-                    success_metrics_available = True
+                check_for_metrics = get_metrics(metric)
+                if not check_for_metrics:
+                    raise PrometheusMetricsNotAvailable
                 else:
-                    print('Success Metrics Not Yet Available...')
-                    if time.time() > t_end:
-                        print(f'Testing Timeout ({deploy_timeout}) Exceeded!' )
-                        print('Rollback Initiated')
-                        sys.exit(1)
-                    time.sleep(int(testing_time_wait))
-            except:
-                print('Success Metrics Not Yet Available...')
-                if time.time() > t_end:
-                    print(f'Testing Timeout ({deploy_timeout}) Exceeded!' )
+                    print('Metrics Returned, Starting Timed Health Check')
+                    testing_started = True
+                    t_end = time.time() + int(testing_time_total)
+                    while time.time() < t_end:
+                        try:
+                            success_percent = get_metrics(metric)
+                            if not success_percent:
+                                print('Metrics Not Available At This Time.')
+                                time.sleep(int(testing_time_wait))
+                                threshold_check_failed = False
+                            else:
+                                if float(success_percent) >= float(threshold):
+                                    threshold_check_failed = False
+                                    print('Health Check Passed, Success Rate at: {:.1%}'.format(1))
+                                    time.sleep(int(testing_time_wait))
+                                else:
+                                    threshold_check_failed = True
+                                    testing_completed = True
+                                    raise MetricThreshold
+                        except (MetricThreshold):
+                            print(f'Success Rate {success_percent} lower than threshold')
+                            print('Metric Below Success Threshold!')
+                            break                    
+                        except:
+                            print('Success Metrics Not Available...')
+                            time.sleep(int(testing_time_wait))
+                            pass
+                    if threshold_check_failed:
+                        raise ThresholdCheckFailed
+            except (PrometheusMetricsNotAvailable):
+                print('Metrics Not Yet Available At This Time.')
+                print('Retrying Metric Test...')
+                if time.time() > m_timeout:
+                    print(f'Metrics Timeout ({deploy_timeout}) Exceeded!' )
                     print('Rollback Initiated')
                     sys.exit(1)
                 time.sleep(int(testing_time_wait))
                 pass
+            except (ThresholdCheckFailed):
+                print('Threshold Check Failed!')
+                print('Rollback Initiated')
+                sys.exit(1)
+   
+        print('Testing Completed Successfully')
 
-        if float(success_percent) >= float(threshold):
-            print('Everything is awesome!!!')
-            time.sleep(int(testing_time_wait))
-        else:
-            print(f'Success Rate {success_percent} lower than threshold')
-            print('Rollback Initiated')
-            sys.exit(1)
 
 if __name__ == "__main__":
     main()
