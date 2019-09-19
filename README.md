@@ -29,10 +29,12 @@ Example Step Usage:
     title: Checking Deployment Health...
     image: dustinvanbuskirk/cfstep-healthcheck:alpha
     environment:
+      - TYPES=kubernetes,linkerd
       - CLUSTER=sales-demo@FirstKubernetes
       - DEPLOY_TIMEOUT=120
       - DEPLOYMENT=example-voting-app-vote
       - KUBE_CONFIG=/codefresh/volume/sensitive/.kube/config
+      - METRIC_TIMEOUT=120
       - NAMESPACE=dustinvb-staging
       - PROMETHEUS_URL=http://10.59.254.185:9090
       - THRESHOLD=1
