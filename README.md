@@ -1,11 +1,14 @@
 # cfstep-linkerd-healthcheck
 
-Prometheus Health Check Query based on Linkerd Success Percentage
+Collection of Kubernetes Health Checks
 
 Types:
-`kubernetes_deployment` Check that Kubernetes deployment has all replicas available (Deployment Successful)
-`kubernetes_statefulset` Check that Kubernetes statefulset has all replicas available (Deployment Successful)
-`linkerd` Watch Prometheus metrics from Linkerd for given time confirming Success Rate remains higher than threshold configured.
+
+| TYPE | DESCRIPTION |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `kubernetes_deployment` | Check that Kubernetes deployment has all replicas available (Deployment Successful)|
+| `kubernetes_statefulset` | Check that Kubernetes statefulset has all replicas available (Deployment Successful)|
+| `linkerd` | Watch Prometheus metrics from Linkerd for given time confirming Success Rate remains higher than threshold configured.|
 
 If either of the above fail the step will fail accordingly
 
