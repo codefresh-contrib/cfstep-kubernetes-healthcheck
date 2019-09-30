@@ -1,4 +1,4 @@
-# cfstep-linkerd-healthcheck
+# cfstep-kubernetes-healthcheck
 
 Collection of Kubernetes Health Checks
 
