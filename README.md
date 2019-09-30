@@ -14,7 +14,7 @@ If either of the above fail the step will fail accordingly
 
 | ENVIRONMENT VARIABLE | DEFAULT | TYPE | REQUIRED | DESCRIPTION |
 |----------------------------|----------|---------|----------|---------------------------------------------------------------------------------------------------------------------------------|
-| CLUSTER | null | string | No | Required for Kubernetes Type / Kubernetes Context Name |
+| CLUSTER | null | string | Yes | Kubernetes Context Name |
 | DEPLOY_TIMEOUT | 120 | integer | No | (seconds) Required for Kubernetes Type / Timeout for Deployment Completion |
 | DEPLOY_WAIT | 5 | integer | No | (seconds) Between Deployment Checks |
 | DEPLOYMENT | null | string | Yes | Kubernetes Deployment/Statefulset Name |
