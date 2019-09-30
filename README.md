@@ -24,7 +24,7 @@ If either of the above fail the step will fail accordingly
 | PROMETHEUS_URL | null | string | Yes | Prometheus URL including protocol and port |
 | THRESHOLD | 1 | integer | No | Required for Linkerd Type / Percentage represented in 1 - .01 (100% - 1%) |
 | TOTAL | 300 | integer | No | (seconds) Required for Linkerd Type / Total Time to Continue Testing |
-| TYPES | null | string | Yes | Type of Tests to Run `;` delimited |
+| TYPES | null | string | Yes | Type of Tests to Run comma delimited |
 | WAIT | 15 | integer | No | (seconds) Wait between tests |
 
 Example Step Usage:
